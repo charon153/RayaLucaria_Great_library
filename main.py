@@ -22,13 +22,16 @@ class Task:
 class Maincontrol:
 	def __init__(self,root):
 		self.root = root
-		self.root.tittle("C'sTimer")
-		self.root.geometry("600x400")
+		self.root.title("BestTimer")
+		self.root.geometry("600x600")
 		self.tasks=[]
 		self.present_task=None
 		self.is_running=False
 		self.timer_id=None
 		self.setup_ui()
+		self.current_task_index=None
+		self.timer_running=False
+
 
 
 #创建框架，父容器为root,内边距为10
@@ -66,15 +69,15 @@ class Maincontrol:
 		#创建开始，暂停，停止按钮
 		#左侧对齐，左右边距5像素
 		ttk.Button(control_frame,text='开始',command=self.start_timer).pack(side=tk.LEFT,expand=True,fill=tk.X,padx=5)
-		ttk.Button(control_frame,text='暂停',command=self.start_timer).pack(side=tk.LEFT,expand=True,fill=tk.X,padx=5)
-		ttk.Button(control_frame,text='停止',command=self.start_timer).pack(side=tk.LEFT,expand=True,fill=tk.X,padx=5)
+		ttk.Button(control_frame,text='暂停',command=self.pause_timer).pack(side=tk.LEFT,expand=True,fill=tk.X,padx=5)
+		ttk.Button(control_frame,text='停止',command=self.stop_timer).pack(side=tk.LEFT,expand=True,fill=tk.X,padx=5)
 
 		#创建导入导出框架
 		io_frame=ttk.Frame(main_frame,padding=10)
 		io_frame.pack(fill=tk.X)
 
 		#创建导入导出按钮
-		ttk.Button(io_frame,text='导出任务',command=self.export_tasks).pack(side=tk.LEFT,expand=True,fill=tk.X,padx=5)
+		ttk.Button(io_frame,text='导入任务',command=self.import_tasks).pack(side=tk.LEFT,expand=True,fill=tk.X,padx=5)
 		ttk.Button(io_frame,text='导出任务',command=self.export_tasks).pack(side=tk.LEFT,expand=True,fill=tk.X,padx=5)
 
 	#将秒转化为时分秒格式
@@ -159,6 +162,7 @@ class Maincontrol:
 		task.status = 'running'
 		self.timer_running=True
 		self.update_task_list()
+		self.update_timer()
 
 
 	#暂停计时器
@@ -181,14 +185,15 @@ class Maincontrol:
 	def stop_timer(self):
 		if self.current_task_index is not None:
 			task=self.tasks[self.current_task_index]
-			if task.status == 'default':
-				task.last=task.duration
-				self.timer_running=False
-				if self.timer_id:
-					self.root.after_cancel(self.timer_id)
-					self.timer_id = None
-				self.timer_label.config(text='00:00:00')
-				self.update_task_list()
+			task.status = 'default'
+			task.last=task.duration
+			self.timer_running=False
+
+			if self.timer_id:
+				self.root.after_cancel(self.timer_id)
+				self.timer_id = None
+			self.timer_label.config(text='00:00:00')
+			self.update_task_list()
 
 	#更新倒计时,显示剩余时间
 
@@ -230,7 +235,7 @@ class Maincontrol:
 	# 在弹出的对话框中选择csv文件，若未选择，则返回。
 	# 清空self.tasks列表，读取每一行数据，创建task
 	def import_tasks(self):
-		filepath=filedialog.asksaveasfilename(filetypes=[('CSV','*.csv')])
+		filepath=filedialog.askopenfilename(filetypes=[('CSV','*.csv')])
 
 		if not filepath:
 			return
