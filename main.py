@@ -128,6 +128,139 @@ class Maincontrol:
 		task.last=duration
 		self.update_task_list()
 
+	#删除任务的方法
+	def delete_task(self):
+		selected=self.task_listbox.curselection()
+		if not selected:
+			messagebox.showwarning('提示','输入一个任务')
+			return
+
+		index=selected[0]
+		del self.tasks[index]
+		self.update_task_list()
+
+	#开始计时
+	#获取选中任务的索引
+	#若选中任务已完成则提示
+	#更改计时器状态
+
+	def start_timer(self):
+		selected=self.task_listbox.curselection()
+		if not selected:
+			messagebox.showwarning('提示','请选择一个任务')
+			return
+
+		self.current_task_index=selected[0]
+		task=self.tasks[self.current_task_index]
+		if task.status == 'completed':
+			messagebox.showwarning('提示','任务完成')
+			return
+
+		task.status = 'running'
+		self.timer_running=True
+		self.update_task_list()
+
+
+	#暂停计时器
+	#当任务进行时，任务状态改为暂停、
+	#使用after方法避免继续倒计时
+	def pause_timer(self):
+		if self.current_task_index is not None:
+			self.tasks[self.current_task_index].status = 'paused'
+			self.timer_running=False
+			if self.timer_id:
+				self.root.after_cancel(self.timer_id)
+				self.timer_id = None
+
+	#停止倒计时
+	#当有任务运行时，将其改为未开始
+	#重置剩余任务时长
+	#停止计时器并且取消after任务
+	#重置及时器
+
+	def stop_timer(self):
+		if self.current_task_index is not None:
+			task=self.tasks[self.current_task_index]
+			if task.status == 'default':
+				task.last=task.duration
+				self.timer_running=False
+				if self.timer_id:
+					self.root.after_cancel(self.timer_id)
+					self.timer_id = None
+				self.timer_label.config(text='00:00:00')
+				self.update_task_list()
+
+	#更新倒计时,显示剩余时间
+
+	def update_timer(self):
+		if not self.timer_running or self.current_task_index is None:
+			return
+
+		task=self.tasks[self.current_task_index]
+		task.last-=1
+		if task.last<=0:
+			task.last=0
+			task.status='completed'
+			self.timer_running=False
+			messagebox.showinfo('提示',f'任务{task.massion}已完成')
+			self.timer_label.config(text='00:00:00')
+
+		else:
+			self.timer_label.config(text=self.format_time(task.last))
+			self.timer_id = self.root.after(1000,self.update_timer)
+
+		self.update_task_list()
+
+
+
+	#以csv格式导出文件
+	def export_tasks(self):
+		filepath=filedialog.asksaveasfilename(defaultextension='.csv',filetypes=[('CSV','*.csv')])
+		if not filepath:
+			return
+		with open(filepath,'w',newline='',encoding='utf-8') as f:
+			writer = csv.writer(f)
+			writer.writerow(['任务名称','总时长','状态','剩余时间'])
+			for task in self.tasks:
+				writer.writerow([task.massion,task.duration,task.status,task.last])
+
+		messagebox.showinfo('成功',f'任务导出到{filepath}')
+
+	#以csv格式导入文件
+	# 在弹出的对话框中选择csv文件，若未选择，则返回。
+	# 清空self.tasks列表，读取每一行数据，创建task
+	def import_tasks(self):
+		filepath=filedialog.asksaveasfilename(filetypes=[('CSV','*.csv')])
+
+		if not filepath:
+			return
+
+		try:
+			with open(filepath,'r',encoding='utf-8') as f:
+				reader = csv.DictReader(f)
+				self.tasks = []
+				for row in reader:
+					self.tasks.append(Task(
+						massion=row['任务名称'],
+						duration=row['总时长'],
+						status=row['状态'],
+						last=row['剩余时间']
+
+
+					))
+			self.update_task_list()
+			messagebox.showinfo('成功',f'导入{len(self.tasks)}个任务')
+		except Exception as e:
+			messagebox.showerror('错误',f'导入失败{str(e)}')
+
+
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = Maincontrol(root)
+    root.mainloop()
+
+
+
 
 
 
