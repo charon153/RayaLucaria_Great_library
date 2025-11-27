@@ -5,6 +5,7 @@ from tkinter import ttk,messagebox,simpledialog
 from tkinter import filedialog
 import tkinter as tk
 
+from real_clock import TimePicker
 # 储存单个信息任务：
 # massion:任务名称；
 # duration：任务总时长;
@@ -55,11 +56,11 @@ class Maincontrol:
 		ttk.Button(button_frame, text="删除任务", command=self.delete_task).pack(fill=tk.X, pady=5)
 
 		#倒计时显示区域
-		timer_frame=ttk.LabelFrame(main_frame,text='计时器',padding=10)
-		timer_frame.pack(fill=tk.X,pady=5)
+		self.timer_frame=ttk.LabelFrame(main_frame,text='计时器',padding=10)
+		self.timer_frame.pack(fill=tk.X,pady=5)
 
 		#创建倒计时显示标签
-		self.timer_label=ttk.Label(timer_frame,text='00:00:00',font=('Arial',20))
+		self.timer_label=ttk.Label(self.timer_frame,text='00:00:00',font=('Arial',20))
 		self.timer_label.pack(pady=10)
 
 		#计时器控制按钮框架
@@ -92,45 +93,79 @@ class Maincontrol:
 
 
 	#添加新任务的方法
+
 	def add_task(self):
-		#弹出输入框获取信息
-		massion=simpledialog.askstring('添加任务','请输入任务名称')
+		massion = simpledialog.askstring('添加任务', '请输入任务名称')
 		if not massion:
 			return
 
-		duration_str=simpledialog.askstring('添加任务','请输入任务时长')
-		if not duration_str or not duration_str.isdigit():
-			messagebox.showerror('时长无效，请输入有效时长')
-			return
-		#创建Task实例并添加到self.task列表
-		duration=int(duration_str)
-		self.tasks.append(Task(massion,duration))
-		self.update_task_list()
+		# 新增：让用户选择输入方式
+		choice = messagebox.askyesno('选择输入方式', '是否使用钟表选择器设定时长？\n（是=钟表选择，否=手动输入）')
+		if choice:
+			# 使用钟表选择器
+			clock = TimePicker(self.root, "选择倒计时时长")
+			duration = clock.show_and_get()
+		else:
+			# 保留原有的手动输入方式
+			duration_str = simpledialog.askstring('添加任务', '请输入任务时长（秒）')
+			if not duration_str or not duration_str.isdigit():
+				messagebox.showerror('错误', '时长无效，请输入一个正整数！')
+				return
+			duration = int(duration_str)
 
+		if duration <= 0:
+			messagebox.showerror('错误', '时长无效，请选择大于0的时间！')
+			return
+
+		self.tasks.append(Task(massion, duration))
+		self.update_task_list()
 	#修改选中的任务
+
 	def modify_task(self):
-		selected=self.task_listbox.curselection()
+		# 获取选中的任务索引
+		selected = self.task_listbox.curselection()
 		if not selected:
-			messagebox.showwarning('注意','选择一个任务')
+			messagebox.showwarning('提示', '请先选择一个任务！')
 			return
 
-		index=selected[0]
-		task=self.tasks[index]
+		index = selected[0]
+		task = self.tasks[index]
 
-		massion=simpledialog.askstring('修改任务','请输入新的任务名称',initialvalue=task.massion)
+		# 修改任务名称
+		massion = simpledialog.askstring('修改任务', '请输入新的任务名称', initialvalue=task.massion)
 		if not massion:
 			return
 
-		duration_str=simpledialog.askstring('修改任务','请输入新任务时长',initialvalue=str(task.duration))
-		if not duration_str or not duration_str.isdigit():
-			messagebox.showerror('错误','请输入有效时长')
+		# 选择时长修改方式
+		choice = messagebox.askyesno('选择输入方式', '是否使用钟表选择器修改时长？\n（是=钟表选择，否=手动输入）')
+		if choice:
+			# 使用钟表选择器（初始化显示原时长）
+			from real_clock import timepicker  # 导入独立的钟表选择器类
+			clock = timepicker(self.root, "修改倒计时时长")
+			# 初始化钟表指针为原任务时长
+			clock.hour = task.duration // 3600
+			clock.minute = (task.duration % 3600) // 60
+			clock.draw_clock()  # 重新绘制初始指针
+			duration = clock.show_and_get()
+		else:
+			# 手动输入时长
+			duration_str = simpledialog.askstring('修改任务', '请输入新任务时长（秒）', initialvalue=str(task.duration))
+			if not duration_str or not duration_str.isdigit():
+				messagebox.showerror('错误', '时长无效，请输入正整数！')
+				return
+			duration = int(duration_str)
+
+		# 验证时长有效性
+		if duration <= 0:
+			messagebox.showerror('错误', '时长无效，请选择大于0的时间！')
 			return
 
-		duration=int(duration_str)
-		task.massion=massion
-		task.last=duration
-		self.update_task_list()
-
+		# 更新任务信息
+		task.massion = massion
+		task.duration = duration
+		task.last = duration  # 重置剩余时间
+		task.status = 'default'  # 重置任务状态
+		self.update_task_list()  # 更新任务列表显示
 	#删除任务的方法
 	def delete_task(self):
 		selected=self.task_listbox.curselection()
